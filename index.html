@@ -221,8 +221,6 @@
 const SUPABASE_URL = 'https://byknunwlpqfiqgemxeaz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5a251bndscHFmaXFnZW14ZWF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDM4MTMsImV4cCI6MjEwMTYxOTgxM30.6Q-Sarz5uZuMNAE46ZuSYcTT9hq6YnMyZlNaWV0WJxM';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-// اسم الـ bucket بمساحة تخزين Supabase اللي بترفع لها الصور
-const STORAGE_BUCKET = 'image_url';
 
 const ICONS = ['electric','plumbing','ac','carpentry','cleaning','paint','appliances','satellite','security','tiling','gardening','pest_control','moving','glass','locksmith','elevator','solar','water_tank','drainage','interior_design','curtains','upholstery','smart_home','generator','fire_safety','pool','roofing','gypsum','wallpaper','water_heater','doors_windows','welding'];
 
@@ -666,29 +664,50 @@ async function handleImageUpload(inputEl, key){
   const labelEl = document.getElementById('uploadlabel_' + key);
   const btnEl = document.getElementById('uploadbtn_' + key);
   const originalLabel = labelEl.textContent;
-  labelEl.textContent = 'جاري الرفع...';
+  labelEl.textContent = 'جاري المعالجة...';
   btnEl.classList.add('uploading');
   try{
-    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-    const path = `${currentFormEntity || 'misc'}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safeName}`;
-    const {error: upErr} = await sb.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:true, cacheControl:'3600'});
-    if(upErr) throw upErr;
-    const {data} = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    const url = data.publicUrl;
-    document.getElementById('f_' + key).value = url;
+    const dataUrl = await resizeImageToDataUrl(file, 900, 0.72);
+    document.getElementById('f_' + key).value = dataUrl;
     const previewBox = document.getElementById('preview_' + key);
     const previmg = document.getElementById('previmg_' + key);
-    previmg.src = url;
+    previmg.src = dataUrl;
     previmg.style.display = 'block';
     previewBox.style.display = 'block';
     labelEl.textContent = 'تغيير الصورة';
-    toast('تم رفع الصورة');
+    toast('تمت إضافة الصورة');
   }catch(err){
     labelEl.textContent = originalLabel;
-    toast('تعذّر رفع الصورة: ' + (err.message || 'تأكد من إعداد مساحة التخزين'));
+    toast('تعذّر معالجة الصورة: ' + (err.message || ''));
   }finally{
     btnEl.classList.remove('uploading');
   }
+}
+
+// يصغّر الصورة (أقصى بعد 900px) ويضغطها JPEG قبل تحويلها لنص Base64، عشان الحجم يضل معقول
+function resizeImageToDataUrl(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('تعذّر قراءة الملف'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('تعذّر فتح الصورة'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w >= h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function openForm(entity, record){
