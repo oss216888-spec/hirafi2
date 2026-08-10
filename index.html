@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تحكم حِرَفي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --ink:#1E2A2F; --paper:#F7F4EE; --card:#FFFFFF; --border:#E7E2D8;
+    --brand:#B56A2C; --brand-dark:#8F5220; --brand-soft:#F2E3D3;
+    --teal:#2F6F63; --teal-soft:#E1EDEA; --muted:#7A8083; --danger:#B5432C; --danger-soft:#F5E3DE;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'IBM Plex Sans Arabic', sans-serif; background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Tajawal', sans-serif; font-weight:800;}
+  button{font-family:inherit; cursor:pointer; border:none; background:none;}
+  input,select,textarea{font-family:inherit;}
+  .app{max-width:480px; margin:0 auto; min-height:100vh; background:var(--paper); position:relative; box-shadow:0 0 60px rgba(30,42,47,0.08); padding-bottom:24px;}
+
+  .topbar{background:var(--ink); color:#fff; padding:16px 18px; position:sticky; top:0; z-index:30;}
+  .topbar-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .brand-mark{display:flex; align-items:center; gap:8px;}
+  .brand-mark .stamp{width:34px; height:34px; border-radius:50%; border:2px dashed rgba(255,255,255,0.5); display:flex; align-items:center; justify-content:center;}
+  .brand-mark span{font-size:17px;}
+  .icon-btn{width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .icon-btn svg{width:17px; height:17px; stroke:#fff;}
+  .icon-btn.spin svg{animation:spin 0.9s linear infinite;}
+  @keyframes spin{ to{transform:rotate(360deg);} }
+
+  .tab-row{display:flex; gap:8px; padding:12px 18px; overflow-x:auto; background:var(--ink);}
+  .tab-chip{flex-shrink:0; padding:8px 14px; border-radius:100px; font-size:12.5px; font-weight:700; background:rgba(255,255,255,0.08); color:#D8D4CB; white-space:nowrap;}
+  .tab-chip.active{background:var(--brand); color:#fff;}
+
+  .section-title{display:flex; align-items:center; justify-content:space-between; margin:18px 18px 12px;}
+  .section-title h2{font-size:16px;}
+  .section-title .count{background:var(--brand-soft); color:var(--brand-dark); font-size:11px; font-weight:700; padding:3px 9px; border-radius:100px;}
+
+  .search-wrap{margin:0 18px 4px; position:relative;}
+  .search-wrap input{width:100%; padding:11px 14px 11px 14px; border-radius:12px; border:1px solid var(--border); background:var(--card); font-size:13.5px;}
+  .search-wrap input:focus{outline:2px solid var(--teal); outline-offset:1px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:14px 18px 0;}
+  .stat-card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px; display:flex; flex-direction:column; gap:4px; text-align:right;}
+  .stat-card b{font-size:22px;}
+  .stat-card span{font-size:12px; color:var(--muted); font-weight:600;}
+
+  .list-wrap{padding:8px 18px 90px; display:flex; flex-direction:column; gap:10px;}
+  .row-card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:13px 14px; display:flex; align-items:center; gap:12px; cursor:pointer;}
+  .row-card .thumb{width:44px; height:44px; border-radius:10px; background:var(--brand-soft); flex-shrink:0; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .row-card .thumb img{width:100%; height:100%; object-fit:cover;}
+  .row-card .thumb svg{width:20px; height:20px; stroke:var(--brand-dark);}
+  .row-card .info{flex:1; min-width:0;}
+  .row-card .info .name{font-size:13.5px; font-weight:700; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .row-card .info .meta{font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .row-card .del-btn{width:32px; height:32px; border-radius:9px; background:var(--danger-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .row-card .del-btn svg{width:15px; height:15px; stroke:var(--danger);}
+  .pill{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:100px;}
+  .pill.teal{background:var(--teal-soft); color:var(--teal);}
+  .pill.brand{background:var(--brand-soft); color:var(--brand-dark);}
+  .pill.danger{background:var(--danger-soft); color:var(--danger);}
+
+  .empty-state{text-align:center; padding:50px 24px; color:var(--muted); font-size:13px;}
+  .empty-state svg{width:40px; height:40px; stroke:var(--border); margin-bottom:12px;}
+
+  .fab{position:fixed; bottom:20px; left:50%; transform:translateX(calc(-50% + 190px)); width:54px; height:54px; border-radius:50%; background:var(--brand); box-shadow:0 8px 20px rgba(181,106,44,0.4); display:flex; align-items:center; justify-content:center; z-index:50;}
+  .fab svg{width:24px; height:24px; stroke:#fff;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .sheet-overlay{display:none; position:fixed; inset:0; z-index:200; background:rgba(20,26,29,0.5); align-items:flex-end; justify-content:center;}
+  .sheet-overlay.active{display:flex;}
+  .sheet-box{width:100%; max-width:480px; background:#fff; border-radius:22px 22px 0 0; padding:18px 20px 26px; max-height:88vh; overflow-y:auto; animation:sheetUp .2s ease;}
+  @keyframes sheetUp{from{transform:translateY(100%);} to{transform:translateY(0);}}
+  .sheet-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .sheet-close{width:34px; height:34px; border-radius:50%; background:var(--paper); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .sheet-close svg{width:16px; height:16px; stroke:var(--ink);}
+  .sheet-top h3{font-size:16px;}
+
+  .field-label{font-size:12px; font-weight:700; color:var(--muted); margin-bottom:6px;}
+  .form-field{margin-bottom:14px;}
+  .form-input, .form-select, .form-textarea{width:100%; border:1px solid var(--border); border-radius:11px; padding:11px 13px; font-size:13.5px; background:var(--card);}
+  .form-input:focus, .form-select:focus, .form-textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
+  .form-textarea{min-height:80px; resize:vertical;}
+
+  .image-upload-box{display:flex; align-items:center; gap:12px;}
+  .image-preview{width:64px; height:64px; border-radius:12px; overflow:hidden; background:var(--paper); border:1px solid var(--border); flex-shrink:0;}
+  .image-preview img{width:100%; height:100%; object-fit:cover; display:block;}
+  .image-upload-btn{display:flex; align-items:center; gap:7px; border:1.5px dashed var(--teal); background:var(--teal-soft); color:var(--teal); font-weight:700; font-size:12.5px; padding:11px 14px; border-radius:12px; flex:1; justify-content:center;}
+  .image-upload-btn svg{width:16px; height:16px; stroke:var(--teal); flex-shrink:0;}
+  .image-upload-btn.uploading{opacity:.6; pointer-events:none;}
+
+  .btn-primary{background:var(--brand); color:#fff; font-weight:700; font-size:14.5px; padding:13px; border-radius:13px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;}
+  .btn-primary:active{background:var(--brand-dark);}
+  .btn-outline-danger{background:var(--danger-soft); color:var(--danger); font-weight:700; font-size:13.5px; padding:12px; border-radius:13px; width:100%; margin-top:10px;}
+  .btn-secondary-row{display:flex; gap:8px; margin-top:14px;}
+  .status-btn{flex:1; border:1.5px solid var(--border); border-radius:11px; padding:10px 4px; font-size:11.5px; font-weight:700; text-align:center;}
+  .status-btn.active{border-color:var(--teal); background:var(--teal-soft); color:var(--teal);}
+
+  .detail-row{display:flex; justify-content:space-between; padding:8px 0; border-top:1px dashed var(--border); font-size:12.5px;}
+  .detail-row span:first-child{color:var(--muted); font-weight:600;}
+  .detail-row span:last-child{font-weight:700;}
+
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; font-size:13px; font-weight:600; padding:12px 20px; border-radius:100px; z-index:400; opacity:0; pointer-events:none; transition:opacity .2s ease; box-shadow:0 8px 20px rgba(0,0,0,0.25); white-space:nowrap; max-width:90%; overflow:hidden; text-overflow:ellipsis;}
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="topbar-row">
+      <div class="brand-mark">
+        <div class="stamp">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg>
+        </div>
+        <span class="display">لوحة تحكم حِرَفي</span>
+      </div>
+      <button class="icon-btn" id="refresh-btn" onclick="refreshAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 3v5h5"/></svg>
+      </button>
+    </div>
+    <div class="tab-row" id="tab-row"></div>
+  </div>
+
+  <!-- ============ HOME / DASHBOARD ============ -->
+  <div class="view active" id="view-home">
+    <div class="stat-grid" id="stat-grid"></div>
+  </div>
+
+  <!-- ============ CATEGORIES ============ -->
+  <div class="view" id="view-categories">
+    <div class="section-title"><h2>الفئات</h2><span class="count" id="count-categories">0</span></div>
+    <div class="search-wrap"><input type="text" placeholder="ابحث عن فئة..." oninput="renderCategories(this.value)"></div>
+    <div class="list-wrap" id="list-categories"></div>
+  </div>
+
+  <!-- ============ SERVICES ============ -->
+  <div class="view" id="view-services">
+    <div class="section-title"><h2>الخدمات</h2><span class="count" id="count-services">0</span></div>
+    <div class="search-wrap"><input type="text" placeholder="ابحث عن خدمة..." oninput="renderServices(this.value)"></div>
+    <div class="list-wrap" id="list-services"></div>
+  </div>
+
+  <!-- ============ OFFERS ============ -->
+  <div class="view" id="view-offers">
+    <div class="section-title"><h2>العروض</h2><span class="count" id="count-offers">0</span></div>
+    <div class="list-wrap" id="list-offers"></div>
+  </div>
+
+  <!-- ============ STORES ============ -->
+  <div class="view" id="view-stores">
+    <div class="section-title"><h2>المتاجر</h2><span class="count" id="count-stores">0</span></div>
+    <div class="list-wrap" id="list-stores"></div>
+  </div>
+
+  <!-- ============ PRODUCTS ============ -->
+  <div class="view" id="view-products">
+    <div class="section-title"><h2>المنتجات</h2><span class="count" id="count-products">0</span></div>
+    <div class="search-wrap"><input type="text" placeholder="ابحث عن منتج..." oninput="renderProducts(this.value)"></div>
+    <div class="list-wrap" id="list-products"></div>
+  </div>
+
+  <!-- ============ ORDERS ============ -->
+  <div class="view" id="view-orders">
+    <div class="section-title"><h2>الطلبات</h2><span class="count" id="count-orders">0</span></div>
+    <div class="list-wrap" id="list-orders"></div>
+  </div>
+
+  <!-- ============ USERS ============ -->
+  <div class="view" id="view-users">
+    <div class="section-title"><h2>المستخدمين</h2><span class="count" id="count-users">0</span></div>
+    <div class="search-wrap"><input type="text" placeholder="ابحث بالاسم أو الجوال..." oninput="renderUsers(this.value)"></div>
+    <div class="list-wrap" id="list-users"></div>
+  </div>
+
+  <button class="fab" id="fab-btn" onclick="openAddForEntity()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+</div>
+
+<!-- ============ FORM SHEET ============ -->
+<div class="sheet-overlay" id="form-overlay" onclick="if(event.target===this) closeForm()">
+  <div class="sheet-box">
+    <div class="sheet-top">
+      <button class="sheet-close" onclick="closeForm()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <h3 id="form-title">إضافة</h3>
+    </div>
+    <div id="form-fields"></div>
+    <button class="btn-primary" id="form-save-btn" onclick="saveCurrentForm()">حفظ</button>
+    <button class="btn-outline-danger" id="form-delete-btn" style="display:none;" onclick="deleteCurrentForm()">حذف</button>
+  </div>
+</div>
+
+<!-- ============ ORDER DETAIL SHEET ============ -->
+<div class="sheet-overlay" id="order-overlay" onclick="if(event.target===this) closeOrderSheet()">
+  <div class="sheet-box">
+    <div class="sheet-top">
+      <button class="sheet-close" onclick="closeOrderSheet()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+      <h3>تفاصيل الطلب</h3>
+    </div>
+    <div class="field-label" style="margin-bottom:8px;">الحالة</div>
+    <div class="btn-secondary-row" id="order-status-row"></div>
+    <div id="order-detail-body" style="margin-top:6px;"></div>
+    <button class="btn-outline-danger" onclick="deleteCurrentOrder()">حذف الطلب</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Supabase config (نفس مشروع تطبيق حِرَفي) ---------------- */
+const SUPABASE_URL = 'https://byknunwlpqfiqgemxeaz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5a251bndscHFmaXFnZW14ZWF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNDM4MTMsImV4cCI6MjEwMTYxOTgxM30.6Q-Sarz5uZuMNAE46ZuSYcTT9hq6YnMyZlNaWV0WJxM';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// اسم الـ bucket بمساحة تخزين Supabase اللي بترفع لها الصور (لازم تنشئه كـ public أول مرة)
+const STORAGE_BUCKET = 'app-images';
+
+const ICONS = ['electric','plumbing','ac','carpentry','cleaning','paint','appliances','satellite','security','tiling','gardening','pest_control','moving','glass','locksmith','elevator','solar','water_tank','drainage','interior_design','curtains','upholstery','smart_home','generator','fire_safety','pool','roofing','gypsum','wallpaper','water_heater','doors_windows','welding'];
+
+const ICON_LABELS = {
+  electric:'كهرباء', plumbing:'سباكة', ac:'تكييف', carpentry:'نجارة', cleaning:'تنظيف',
+  paint:'دهانات', appliances:'أجهزة منزلية', satellite:'دِش وستلايت', security:'أمن وحراسة',
+  tiling:'تبليط', gardening:'تنسيق حدائق', pest_control:'مكافحة حشرات', moving:'نقل عفش',
+  glass:'زجاج ومرايا', locksmith:'أقفال', elevator:'مصاعد', solar:'طاقة شمسية',
+  water_tank:'خزانات مياه', drainage:'صرف صحي', interior_design:'تصميم داخلي', curtains:'ستائر',
+  upholstery:'تنجيد', smart_home:'منزل ذكي', generator:'مولدات', fire_safety:'أنظمة إطفاء',
+  pool:'مسابح', roofing:'أسطح وعزل', gypsum:'جبس بورد', wallpaper:'ورق جدران',
+  water_heater:'سخانات مياه', doors_windows:'أبواب ونوافذ', welding:'لحام وحدادة',
+};
+
+const TABS = [
+  {id:'home', label:'الرئيسية'},
+  {id:'categories', label:'الفئات'},
+  {id:'services', label:'الخدمات'},
+  {id:'offers', label:'العروض'},
+  {id:'stores', label:'المتاجر'},
+  {id:'products', label:'المنتجات'},
+  {id:'orders', label:'الطلبات'},
+  {id:'users', label:'المستخدمين'},
+];
+let activeTab = 'home';
+
+let state = {categories:[], services:[], offers:[], stores:[], products:[], productPrices:[], orders:[], profiles:[], addresses:[]};
+
+/* ---------------- Toast ---------------- */
+let toastTimer = null;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> el.classList.remove('show'), 2600);
+}
+
+/* ---------------- Tabs ---------------- */
+function renderTabs(){
+  document.getElementById('tab-row').innerHTML = TABS.map(t => `
+    <button class="tab-chip ${t.id===activeTab?'active':''}" onclick="showTab('${t.id}')">${t.label}</button>
+  `).join('');
+}
+function showTab(id){
+  activeTab = id;
+  renderTabs();
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  document.getElementById('fab-btn').style.display = ['categories','services','offers','stores','products'].includes(id) ? 'flex' : 'none';
+  renderAllLists();
+  window.scrollTo(0,0);
+}
+
+/* ---------------- Load data ---------------- */
+async function loadAll(){
+  document.getElementById('refresh-btn').classList.add('spin');
+  try{
+    const [cats, svs, offs, strs, prods, pprices, ords, profs, addrs] = await Promise.all([
+      sb.from('service_categories').select('*').order('sort_order'),
+      sb.from('services').select('*').order('sort_order'),
+      sb.from('offers').select('*').order('sort_order'),
+      sb.from('stores').select('*'),
+      sb.from('products').select('*').order('sort_order'),
+      sb.from('product_prices').select('*'),
+      sb.from('orders').select('*').order('created_at', {ascending:false}),
+      sb.from('profiles').select('*'),
+      sb.from('addresses').select('*'),
+    ]);
+    state.categories = cats.data || [];
+    state.services = svs.data || [];
+    state.offers = offs.data || [];
+    state.stores = strs.data || [];
+    state.products = prods.data || [];
+    state.productPrices = pprices.data || [];
+    state.orders = ords.data || [];
+    state.profiles = profs.data || [];
+    state.addresses = addrs.data || [];
+
+    const firstErr = [cats,svs,offs,strs,prods,pprices,ords,profs,addrs].find(r => r.error);
+    if(firstErr) console.warn('تنبيه قراءة بيانات:', firstErr.error);
+  }catch(err){
+    toast('تعذّر تحميل البيانات: ' + (err.message || 'خطأ غير معروف'));
+  }finally{
+    document.getElementById('refresh-btn').classList.remove('spin');
+  }
+}
+async function refreshAll(){
+  await loadAll();
+  renderAllLists();
+  toast('تم التحديث');
+}
+function renderAllLists(){
+  renderStats();
+  renderCategories();
+  renderServices();
+  renderOffers();
+  renderStores();
+  renderProducts();
+  renderOrders();
+  renderUsers();
+}
+
+/* ---------------- Dashboard ---------------- */
+function renderStats(){
+  const items = [
+    {label:'الفئات', n:state.categories.length, tab:'categories'},
+    {label:'الخدمات', n:state.services.length, tab:'services'},
+    {label:'العروض', n:state.offers.length, tab:'offers'},
+    {label:'المتاجر', n:state.stores.length, tab:'stores'},
+    {label:'المنتجات', n:state.products.length, tab:'products'},
+    {label:'الطلبات', n:state.orders.length, tab:'orders'},
+    {label:'المستخدمين', n:state.profiles.length, tab:'users'},
+  ];
+  document.getElementById('stat-grid').innerHTML = items.map(i => `
+    <div class="stat-card" onclick="showTab('${i.tab}')" style="cursor:pointer;">
+      <b>${i.n}</b>
+      <span>${i.label}</span>
+    </div>
+  `).join('');
+}
+
+/* ---------------- Generic helpers ---------------- */
+function emptyState(label){
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" style="margin:0 auto;"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    <div>${label}</div>
+  </div>`;
+}
+function esc(s){ return (s==null?'':String(s)).replace(/'/g,"\\'"); }
+
+/* ---------------- CATEGORIES ---------------- */
+function renderCategories(query){
+  query = (query||'').trim();
+  document.getElementById('count-categories').textContent = state.categories.length;
+  let items = state.categories;
+  if(query) items = items.filter(c => (c.label||'').includes(query));
+  const list = document.getElementById('list-categories');
+  if(items.length === 0){ list.innerHTML = emptyState('لا يوجد فئات — اضغط + للإضافة'); return; }
+  list.innerHTML = items.map(c => {
+    const svCount = state.services.filter(s => String(s.category_id) === String(c.id)).length;
+    return `
+    <div class="row-card" onclick="openEditForm('category', '${c.id}')">
+      <div class="thumb">${c.icon_url ? `<img src="${c.icon_url}">` : `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>`}</div>
+      <div class="info">
+        <div class="name">${c.label}</div>
+        <div class="meta"><span class="pill brand">${svCount} خدمة</span><span>ترتيب ${c.sort_order ?? 0}</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); quickDelete('service_categories','${c.id}','renderCategories')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- SERVICES ---------------- */
+function catLabel(id){
+  const c = state.categories.find(x => String(x.id) === String(id));
+  return c ? c.label : '—';
+}
+function renderServices(query){
+  query = (query||'').trim();
+  document.getElementById('count-services').textContent = state.services.length;
+  let items = state.services;
+  if(query) items = items.filter(s => (s.name||'').includes(query));
+  const list = document.getElementById('list-services');
+  if(items.length === 0){ list.innerHTML = emptyState('لا يوجد خدمات — اضغط + للإضافة'); return; }
+  list.innerHTML = items.map(s => `
+    <div class="row-card" onclick="openEditForm('service', '${s.id}')">
+      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1c.3-.3.9-.2 1 .2a6 6 0 0 1-8.3 7.1l-7.9 7.9a1 1 0 0 1-3-3l7.9-7.9a6 6 0 0 1 7.1-8.3c.4.1.5.7.2 1z"/></svg></div>
+      <div class="info">
+        <div class="name">${s.name}</div>
+        <div class="meta"><span class="pill teal">${catLabel(s.category_id)}</span><span>${Number(s.price).toFixed(1)} ريال</span><span>${s.type || ''}</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); quickDelete('services','${s.id}','renderServices')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+/* ---------------- OFFERS ---------------- */
+function renderOffers(){
+  document.getElementById('count-offers').textContent = state.offers.length;
+  const list = document.getElementById('list-offers');
+  if(state.offers.length === 0){ list.innerHTML = emptyState('لا يوجد عروض — اضغط + للإضافة'); return; }
+  const now = new Date();
+  list.innerHTML = state.offers.map(o => {
+    const isExpired = o.expires_at ? (new Date(o.expires_at) < now) : false;
+    return `
+    <div class="row-card" onclick="openEditForm('offer', '${o.id}')">
+      <div class="thumb">${o.image_url ? `<img src="${o.image_url}">` : `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20.6 12.6L12 21l-9-9V4h8l9.6 8.6a2 2 0 0 1 0 2.6z"/></svg>`}</div>
+      <div class="info">
+        <div class="name">${o.title}</div>
+        <div class="meta"><span class="pill ${isExpired?'danger':'teal'}">${isExpired?'منتهي':'فعّال'}</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); quickDelete('offers','${o.id}','renderOffers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- STORES ---------------- */
+function renderStores(){
+  document.getElementById('count-stores').textContent = state.stores.length;
+  const list = document.getElementById('list-stores');
+  if(state.stores.length === 0){ list.innerHTML = emptyState('لا يوجد متاجر — اضغط + للإضافة'); return; }
+  list.innerHTML = state.stores.map(s => {
+    const pCount = state.products.filter(p => String(p.store_id) === String(s.id)).length;
+    return `
+    <div class="row-card" onclick="openEditForm('store', '${s.id}')">
+      <div class="thumb">${s.logo_url ? `<img src="${s.logo_url}">` : `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="1"/></svg>`}</div>
+      <div class="info">
+        <div class="name">${s.name}</div>
+        <div class="meta"><span class="pill brand">${pCount} منتج</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); quickDelete('stores','${s.id}','renderStores')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- PRODUCTS ---------------- */
+function storeLabel(id){
+  const s = state.stores.find(x => String(x.id) === String(id));
+  return s ? s.name : '—';
+}
+function renderProducts(query){
+  query = (query||'').trim();
+  document.getElementById('count-products').textContent = state.products.length;
+  let items = state.products;
+  if(query) items = items.filter(p => (p.name||'').includes(query));
+  const list = document.getElementById('list-products');
+  if(items.length === 0){ list.innerHTML = emptyState('لا يوجد منتجات — اضغط + للإضافة'); return; }
+  list.innerHTML = items.map(p => `
+    <div class="row-card" onclick="openEditForm('product', '${p.id}')">
+      <div class="thumb">${p.image_url ? `<img src="${p.image_url}">` : `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 9l1-5h16l1 5M3 9v10a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9"/></svg>`}</div>
+      <div class="info">
+        <div class="name">${p.name}</div>
+        <div class="meta"><span class="pill teal">${storeLabel(p.store_id)}</span><span>${Number(p.price).toFixed(1)} ريال</span></div>
+      </div>
+      <button class="del-btn" onclick="event.stopPropagation(); quickDelete('products','${p.id}','renderProducts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0-1 14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1L6 6"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+/* ---------------- ORDERS ---------------- */
+const ORDER_STATUS_LABEL = {searching:'جاري البحث', inprogress:'جاري التنفيذ', done:'تم الإنجاز'};
+function renderOrders(){
+  document.getElementById('count-orders').textContent = state.orders.length;
+  const list = document.getElementById('list-orders');
+  if(state.orders.length === 0){ list.innerHTML = emptyState('لا يوجد طلبات حالياً'); return; }
+  list.innerHTML = state.orders.map(o => {
+    const itemsLine = (o.items||[]).map(i => i.name + ' ×' + i.qty).join('، ');
+    return `
+    <div class="row-card" onclick="openOrderSheet('${o.id}')" style="align-items:flex-start;">
+      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 3h6v4H9zM5 7h14v14H5z"/></svg></div>
+      <div class="info">
+        <div class="name">${Number(o.total).toFixed(1)} ريال <span class="pill teal">${ORDER_STATUS_LABEL[o.status]||o.status}</span></div>
+        <div class="meta" style="display:block; line-height:1.6;">${itemsLine || '—'}</div>
+        <div class="meta" style="margin-top:4px;">${o.address || ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- USERS ---------------- */
+function renderUsers(query){
+  query = (query||'').trim();
+  document.getElementById('count-users').textContent = state.profiles.length;
+  let items = state.profiles;
+  if(query) items = items.filter(p => (p.full_name||'').includes(query) || (p.phone||'').includes(query));
+  const list = document.getElementById('list-users');
+  if(items.length === 0){ list.innerHTML = emptyState('لا يوجد مستخدمين لعرضهم (تأكد من صلاحيات القراءة على جدول profiles)'); return; }
+  list.innerHTML = items.map(u => {
+    const addrCount = state.addresses.filter(a => String(a.user_id) === String(u.id)).length;
+    const orderCount = state.orders.filter(o => String(o.user_id) === String(u.id)).length;
+    return `
+    <div class="row-card" style="cursor:default;">
+      <div class="thumb"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+      <div class="info">
+        <div class="name">${u.full_name || 'بدون اسم'}</div>
+        <div class="meta"><span>${u.phone || '—'}</span><span class="pill brand">${orderCount} طلب</span><span class="pill teal">${addrCount} عنوان</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- Quick delete ---------------- */
+async function quickDelete(table, id, rerenderFn){
+  if(!confirm('متأكد إنك تبي تحذف هذا العنصر؟')) return;
+  try{
+    const {error} = await sb.from(table).delete().eq('id', id);
+    if(error) throw error;
+    if(table === 'service_categories') state.categories = state.categories.filter(x=>String(x.id)!==String(id));
+    if(table === 'services') state.services = state.services.filter(x=>String(x.id)!==String(id));
+    if(table === 'offers') state.offers = state.offers.filter(x=>String(x.id)!==String(id));
+    if(table === 'stores') state.stores = state.stores.filter(x=>String(x.id)!==String(id));
+    if(table === 'products') state.products = state.products.filter(x=>String(x.id)!==String(id));
+    window[rerenderFn]();
+    renderStats();
+    toast('تم الحذف');
+  }catch(err){
+    toast('تعذّر الحذف: ' + (err.message || ''));
+  }
+}
+
+/* ---------------- Form field specs ---------------- */
+const FORM_SPECS = {
+  category: {
+    table:'service_categories', title:'فئة',
+    fields:[
+      {key:'label', label:'اسم الفئة', type:'text', required:true},
+      {key:'icon_key', label:'الأيقونة', type:'select', options:ICONS, labelMap:ICON_LABELS},
+      {key:'icon_url', label:'صورة مخصصة (اختياري)', type:'image_upload'},
+      {key:'sort_order', label:'ترتيب الظهور', type:'number', default:0},
+    ],
+  },
+  service: {
+    table:'services', title:'خدمة',
+    fields:[
+      {key:'category_id', label:'الفئة', type:'select_dynamic', source:'categories', valueKey:'id', labelKey:'label'},
+      {key:'name', label:'اسم الخدمة', type:'text', required:true},
+      {key:'price', label:'السعر (ريال)', type:'number', required:true},
+      {key:'type', label:'النوع', type:'select', options:['تركيب','أخرى']},
+      {key:'warranty_days', label:'مدة الضمان (يوم)', type:'number', default:30},
+      {key:'sort_order', label:'ترتيب الظهور', type:'number', default:0},
+    ],
+  },
+  offer: {
+    table:'offers', title:'عرض',
+    fields:[
+      {key:'title', label:'عنوان العرض', type:'text', required:true},
+      {key:'description', label:'الوصف', type:'textarea'},
+      {key:'details', label:'تفاصيل إضافية (سطر لكل نقطة)', type:'textarea_lines'},
+      {key:'image_url', label:'صورة العرض', type:'image_upload'},
+      {key:'expires_at', label:'تاريخ الانتهاء (اختياري)', type:'date'},
+      {key:'sort_order', label:'ترتيب الظهور', type:'number', default:0},
+    ],
+  },
+  store: {
+    table:'stores', title:'متجر',
+    fields:[
+      {key:'name', label:'اسم المتجر', type:'text', required:true},
+      {key:'logo_url', label:'شعار المتجر', type:'image_upload'},
+    ],
+  },
+  product: {
+    table:'products', title:'منتج',
+    fields:[
+      {key:'store_id', label:'المتجر', type:'select_dynamic', source:'stores', valueKey:'id', labelKey:'name'},
+      {key:'name', label:'اسم المنتج', type:'text', required:true},
+      {key:'description', label:'الوصف', type:'textarea'},
+      {key:'image_url', label:'صورة المنتج', type:'image_upload'},
+      {key:'price', label:'السعر الأساسي (ريال)', type:'number', required:true},
+      {key:'warranty_days', label:'مدة الضمان (يوم)', type:'number', default:30},
+      {key:'sort_order', label:'ترتيب الظهور', type:'number', default:0},
+    ],
+  },
+};
+
+let currentFormEntity = null;
+let currentFormRecord = null;
+
+function fabEntityForTab(){
+  const map = {categories:'category', services:'service', offers:'offer', stores:'store', products:'product'};
+  return map[activeTab] || null;
+}
+function nextSortOrder(entity){
+  const stateKeyMap = {category:'categories', service:'services', offer:'offers', product:'products'};
+  const key = stateKeyMap[entity];
+  if(!key) return 0;
+  const list = state[key] || [];
+  if(list.length === 0) return 0;
+  const max = Math.max(...list.map(x => Number(x.sort_order) || 0));
+  return max + 1;
+}
+function openAddForEntity(){
+  const entity = fabEntityForTab();
+  if(!entity) return;
+  openForm(entity, null);
+}
+function openEditForm(entity, id){
+  const spec = FORM_SPECS[entity];
+  const stateKey = {category:'categories', service:'services', offer:'offers', store:'stores', product:'products'}[entity];
+  const record = state[stateKey].find(x => String(x.id) === String(id));
+  openForm(entity, record || null);
+}
+
+function buildFieldHtml(f, record){
+  const val = record ? record[f.key] : (f.default ?? '');
+  if(f.type === 'select'){
+    const opts = f.options.map(o => `<option value="${o}" ${val===o?'selected':''}>${f.labelMap ? (f.labelMap[o]||o) : o}</option>`).join('');
+    return `<select class="form-select" id="f_${f.key}">${opts}</select>`;
+  }
+  if(f.type === 'select_dynamic'){
+    const items = state[f.source] || [];
+    const opts = items.map(it => `<option value="${it[f.valueKey]}" ${String(val)===String(it[f.valueKey])?'selected':''}>${it[f.labelKey]}</option>`).join('');
+    return `<select class="form-select" id="f_${f.key}"><option value="">— اختر —</option>${opts}</select>`;
+  }
+  if(f.type === 'textarea'){
+    return `<textarea class="form-textarea" id="f_${f.key}" placeholder="${f.label}">${val ?? ''}</textarea>`;
+  }
+  if(f.type === 'textarea_lines'){
+    const text = Array.isArray(val) ? val.join('\n') : (val || '');
+    return `<textarea class="form-textarea" id="f_${f.key}" placeholder="سطر لكل نقطة">${text}</textarea>`;
+  }
+  if(f.type === 'number'){
+    return `<input class="form-input" type="number" step="0.01" id="f_${f.key}" value="${val ?? ''}">`;
+  }
+  if(f.type === 'date'){
+    const d = val ? String(val).slice(0,10) : '';
+    return `<input class="form-input" type="date" id="f_${f.key}" value="${d}">`;
+  }
+  if(f.type === 'image_upload'){
+    const url = val || '';
+    return `
+      <input type="hidden" id="f_${f.key}" value="${url.toString().replace(/"/g,'&quot;')}">
+      <div class="image-upload-box">
+        <div class="image-preview" id="preview_${f.key}" style="${url?'':'display:none;'}">
+          ${url ? `<img src="${url}" id="previmg_${f.key}">` : `<img id="previmg_${f.key}" style="display:none;">`}
+        </div>
+        <label class="image-upload-btn" id="uploadbtn_${f.key}">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg>
+          <span id="uploadlabel_${f.key}">${url ? 'تغيير الصورة' : 'اختر صورة من الجهاز'}</span>
+          <input type="file" accept="image/*" style="display:none;" onchange="handleImageUpload(this, '${f.key}')">
+        </label>
+      </div>
+    `;
+  }
+  return `<input class="form-input" type="text" id="f_${f.key}" value="${(val ?? '').toString().replace(/"/g,'&quot;')}">`;
+}
+
+async function handleImageUpload(inputEl, key){
+  const file = inputEl.files[0];
+  if(!file) return;
+  const labelEl = document.getElementById('uploadlabel_' + key);
+  const btnEl = document.getElementById('uploadbtn_' + key);
+  const originalLabel = labelEl.textContent;
+  labelEl.textContent = 'جاري الرفع...';
+  btnEl.classList.add('uploading');
+  try{
+    const safeName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+    const path = `${currentFormEntity || 'misc'}/${Date.now()}_${Math.random().toString(36).slice(2,8)}_${safeName}`;
+    const {error: upErr} = await sb.storage.from(STORAGE_BUCKET).upload(path, file, {upsert:true, cacheControl:'3600'});
+    if(upErr) throw upErr;
+    const {data} = sb.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+    const url = data.publicUrl;
+    document.getElementById('f_' + key).value = url;
+    const previewBox = document.getElementById('preview_' + key);
+    const previmg = document.getElementById('previmg_' + key);
+    previmg.src = url;
+    previmg.style.display = 'block';
+    previewBox.style.display = 'block';
+    labelEl.textContent = 'تغيير الصورة';
+    toast('تم رفع الصورة');
+  }catch(err){
+    labelEl.textContent = originalLabel;
+    toast('تعذّر رفع الصورة: ' + (err.message || 'تأكد من إعداد مساحة التخزين'));
+  }finally{
+    btnEl.classList.remove('uploading');
+  }
+}
+
+function openForm(entity, record){
+  currentFormEntity = entity;
+  const spec = FORM_SPECS[entity];
+  let useRecord = record;
+  if(!record && spec.fields.some(f => f.key === 'sort_order')){
+    useRecord = {sort_order: nextSortOrder(entity)};
+  }
+  currentFormRecord = useRecord;
+  document.getElementById('form-title').textContent = (record ? 'تعديل ' : 'إضافة ') + spec.title;
+  document.getElementById('form-fields').innerHTML = spec.fields.map(f => `
+    <div class="form-field">
+      <div class="field-label">${f.label}</div>
+      ${buildFieldHtml(f, useRecord)}
+    </div>
+  `).join('');
+  document.getElementById('form-delete-btn').style.display = record ? 'block' : 'none';
+  document.getElementById('form-overlay').classList.add('active');
+}
+function closeForm(){
+  document.getElementById('form-overlay').classList.remove('active');
+  currentFormEntity = null;
+  currentFormRecord = null;
+}
+
+async function saveCurrentForm(){
+  const entity = currentFormEntity;
+  const spec = FORM_SPECS[entity];
+  if(!spec) return;
+  const payload = {};
+  for(const f of spec.fields){
+    const el = document.getElementById('f_' + f.key);
+    let v = el.value;
+    if(f.type === 'number'){ v = v === '' ? null : Number(v); }
+    else if(f.type === 'textarea_lines'){ v = v.split('\n').map(s=>s.trim()).filter(Boolean); }
+    else if(f.type === 'date'){ v = v === '' ? null : v; }
+    else if(f.type === 'select_dynamic'){ v = v === '' ? null : v; }
+    if(f.required && (v === '' || v === null || v === undefined)){
+      toast('املأ الحقل: ' + f.label);
+      return;
+    }
+    payload[f.key] = v;
+  }
+  const btn = document.getElementById('form-save-btn');
+  const original = btn.textContent;
+  btn.textContent = 'جاري الحفظ...'; btn.disabled = true;
+  try{
+    if(currentFormRecord && currentFormRecord.id){
+      const {error} = await sb.from(spec.table).update(payload).eq('id', currentFormRecord.id);
+      if(error) throw error;
+      toast('تم حفظ التعديلات');
+    } else {
+      const {error} = await sb.from(spec.table).insert(payload);
+      if(error) throw error;
+      toast('تمت الإضافة');
+    }
+    closeForm();
+    await loadAll();
+    renderAllLists();
+  }catch(err){
+    toast('تعذّر الحفظ: ' + (err.message || 'تحقق من صلاحيات الجدول (RLS)'));
+  }finally{
+    btn.textContent = original; btn.disabled = false;
+  }
+}
+
+async function deleteCurrentForm(){
+  if(!currentFormRecord || !currentFormRecord.id) return;
+  if(!confirm('متأكد إنك تبي تحذف هذا العنصر؟')) return;
+  const spec = FORM_SPECS[currentFormEntity];
+  try{
+    const {error} = await sb.from(spec.table).delete().eq('id', currentFormRecord.id);
+    if(error) throw error;
+    toast('تم الحذف');
+    closeForm();
+    await loadAll();
+    renderAllLists();
+  }catch(err){
+    toast('تعذّر الحذف: ' + (err.message || ''));
+  }
+}
+
+/* ---------------- Order detail sheet ---------------- */
+let currentOrderId = null;
+function openOrderSheet(id){
+  currentOrderId = id;
+  const o = state.orders.find(x => String(x.id) === String(id));
+  if(!o) return;
+  const statuses = ['searching','inprogress','done'];
+  document.getElementById('order-status-row').innerHTML = statuses.map(s => `
+    <button class="status-btn ${o.status===s?'active':''}" onclick="setOrderStatus('${s}')">${ORDER_STATUS_LABEL[s]}</button>
+  `).join('');
+  const itemsHtml = (o.items||[]).map(i => `
+    <div class="detail-row"><span>${i.name} ×${i.qty}</span><span>${Number(i.price*i.qty).toFixed(1)} ريال</span></div>
+  `).join('');
+  document.getElementById('order-detail-body').innerHTML = `
+    ${itemsHtml}
+    <div class="detail-row"><span>العنوان</span><span>${o.address || '—'}</span></div>
+    <div class="detail-row"><span>الموعد</span><span>${o.schedule || '—'}</span></div>
+    <div class="detail-row"><span>طريقة الدفع</span><span>${o.payment_method || '—'}</span></div>
+    <div class="detail-row"><span>الإجمالي</span><span>${Number(o.total).toFixed(1)} ريال</span></div>
+  `;
+  document.getElementById('order-overlay').classList.add('active');
+}
+function closeOrderSheet(){
+  document.getElementById('order-overlay').classList.remove('active');
+  currentOrderId = null;
+}
+async function setOrderStatus(status){
+  if(!currentOrderId) return;
+  try{
+    const {error} = await sb.from('orders').update({status}).eq('id', currentOrderId);
+    if(error) throw error;
+    const o = state.orders.find(x => String(x.id) === String(currentOrderId));
+    if(o) o.status = status;
+    openOrderSheet(currentOrderId);
+    renderOrders();
+    toast('تم تحديث الحالة');
+  }catch(err){
+    toast('تعذّر تحديث الحالة: ' + (err.message || ''));
+  }
+}
+async function deleteCurrentOrder(){
+  if(!currentOrderId) return;
+  if(!confirm('متأكد إنك تبي تحذف هذا الطلب نهائياً؟')) return;
+  try{
+    const {error} = await sb.from('orders').delete().eq('id', currentOrderId);
+    if(error) throw error;
+    state.orders = state.orders.filter(o => String(o.id) !== String(currentOrderId));
+    closeOrderSheet();
+    renderOrders();
+    renderStats();
+    toast('تم حذف الطلب');
+  }catch(err){
+    toast('تعذّر حذف الطلب: ' + (err.message || ''));
+  }
+}
+
+/* ---------------- Init ---------------- */
+renderTabs();
+showTab('home');
+loadAll().then(renderAllLists);
+</script>
+</body>
+</html>
