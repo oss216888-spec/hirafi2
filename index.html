@@ -351,6 +351,11 @@ function emptyState(label){
   </div>`;
 }
 function esc(s){ return (s==null?'':String(s)).replace(/'/g,"\\'"); }
+// يولّد معرّف نصّي فريد للعنصر الجديد (جداولك تستخدم عمود id من نوع نص بدون قيمة تلقائية)
+function generateId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'id_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10);
+}
 
 /* ---------------- CATEGORIES ---------------- */
 function renderCategories(query){
@@ -589,6 +594,13 @@ const FORM_SPECS = {
 let currentFormEntity = null;
 let currentFormRecord = null;
 
+// يولّد معرّف نصي فريد للعنصر الجديد لأن عمود id بهذي الجداول نوعه نص وما يترقم تلقائياً
+const ID_PREFIX = {category:'cat', service:'svc', offer:'off', store:'str', product:'prd'};
+function makeEntityId(entity){
+  const prefix = ID_PREFIX[entity] || 'id';
+  return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
 function fabEntityForTab(){
   const map = {categories:'category', services:'service', offers:'offer', stores:'store', products:'product'};
   return map[activeTab] || null;
@@ -761,6 +773,7 @@ async function saveCurrentForm(){
       if(error) throw error;
       toast('تم حفظ التعديلات');
     } else {
+      payload.id = generateId();
       const {error} = await sb.from(spec.table).insert(payload);
       if(error) throw error;
       toast('تمت الإضافة');
